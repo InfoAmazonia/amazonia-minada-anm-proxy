@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./storage:/app/storage
+    ports:
+      - "3000:3000"
