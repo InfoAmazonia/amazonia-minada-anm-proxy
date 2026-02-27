@@ -1,10 +1,10 @@
-import { CONFIG } from './config';
+import { CONFIG } from './config.ts';
 import * as fs from 'fs';
 import * as path from 'path';
 import axios from 'axios';
 import { promisify } from 'util';
 import * as stream from 'stream';
-import { getLogger } from './logger';
+import { getLogger } from './logger.ts';
 
 const finishedDownload = promisify(stream.finished);
 

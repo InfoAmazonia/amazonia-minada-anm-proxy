@@ -1,2 +1,2 @@
 #!/bin/bash
-ts-node-esm src/server.ts
+node -r ts-node/register src/server.ts

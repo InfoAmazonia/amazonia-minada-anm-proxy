@@ -1,7 +1,7 @@
 import express from 'express';
-import { CONFIG } from './config';
-import { getLogger, InitLogger, InitRequestLogger } from './logger';
-import { FilesPuller } from './files_puller';
+import { CONFIG } from './config.ts';
+import { getLogger, InitLogger, InitRequestLogger } from './logger.ts';
+import { FilesPuller } from './files_puller.ts';
 
 const filesPuller = new FilesPuller();
 const app = express();

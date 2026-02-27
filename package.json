@@ -2,6 +2,7 @@
   "name": "amazonia-minada-datafilesproxy",
   "version": "1.0.0",
   "description": "Amazonia Minada Data Files Proxy",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "dev": "ts-node-dev --inspect --transpile-only --ignore-watch node_modules src/Server.ts"    
