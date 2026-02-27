@@ -2,9 +2,21 @@ services:
   app:
     build: .
     restart: always
+    networks:
+      - proxy_default
     env_file:
       - .env
     volumes:
       - ./storage:/app/storage
     ports:
       - "3000:3000"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.frontend-https.entrypoints: "websecure"
+      traefik.http.routers.frontend-https.rule: "Host(`minadaproxy.infoamazonia.org`)"
+      traefik.http.routers.frontend-https.tls: "true"
+      traefik.http.services.frontend.loadbalancer.server.port: "3000"
+
+networks:
+  proxy_default:
+    external: true

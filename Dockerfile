@@ -1,4 +1,4 @@
-FROM node:22.04
+FROM node:22.22
 
 ENV TZ=America/Sao_Paulo
 
