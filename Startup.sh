@@ -1,2 +1,2 @@
 #!/bin/bash
-ts-node-esm src/Server.ts
+ts-node-esm src/server.ts
