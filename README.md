@@ -1,2 +1,2 @@
-# amazonia-minada-anm-proxy
-API Rest in Node.JS that fetches and proxies ANM shapefiles for Amazônia Minada. Used as an egress node so processing and the public dashboard run on an external VPS while ANM downloads originate from Brazil.
+# amazonia-minada-datafilesproxy
+Proxy para os Arquivos de Dados utilizados pelo Minada (shapefiles, arquivos do ANM.gov.br)
