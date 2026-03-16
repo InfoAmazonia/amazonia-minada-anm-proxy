@@ -13,7 +13,7 @@ InitLogger();
 
 app.get('/', (req, res) => {
   // Redirect to Amazonia Minada
-  res.redirect('https://minada.infoamazonica.com.br/');
+  res.redirect('https://minada.infoamazonia.org/');
 });
 
 app.get("/download/:filename", (req, res) => {
