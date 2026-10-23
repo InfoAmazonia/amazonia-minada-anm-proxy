@@ -1,6 +1,7 @@
 import express from 'express';
 import { CONFIG } from './config.ts';
 import { getLogger, InitLogger, InitRequestLogger } from './logger.ts';
+import { validatedDownload } from './validated-download.ts';
 import { FilesPuller } from './files_puller.ts';
 
 const filesPuller = new FilesPuller();
@@ -18,7 +19,22 @@ app.get('/', (req, res) => {
 
 app.get("/download/:filename", (req, res) => {
   const { filename } = req.params;
-  const storagePath = `./storage/${filename}`;
+  let storagePath = `./storage/${filename}`;
+  if (process.env.ANM_EXTERNAL_COLLECTOR === 'true') {
+    if (filename !== CONFIG.urls.ANM.PROCESSOSMINERARIOS_SHAPEFILE_NAME) {
+      res.status(404).end();
+      return;
+    }
+    try {
+      const validated = validatedDownload(storagePath);
+      storagePath = validated.file;
+      res.set(validated.headers);
+    } catch (error) {
+      getLogger().error('ANM file has no valid publication receipt');
+      res.status(503).send('Validated ANM file unavailable');
+      return;
+    }
+  }
   res.download(storagePath, (err) => {
     if (err) {
       getLogger().error(`Error sending file ${filename}: ${err}`);
@@ -30,6 +46,6 @@ app.get("/download/:filename", (req, res) => {
 });
 
 app.listen(CONFIG.appPort, () => {
-  filesPuller.init();
+  if (process.env.ANM_EXTERNAL_COLLECTOR !== 'true') filesPuller.init();
   console.log(`Server is running at http://localhost:${CONFIG.appPort}`);
 });
