@@ -1,0 +1,7 @@
+services:
+  app:
+    environment:
+      ANM_EXTERNAL_COLLECTOR: "true"
+    volumes:
+      - ./src/server.ts:/app/src/server.ts:ro
+      - ./src/validated-download.ts:/app/src/validated-download.ts:ro

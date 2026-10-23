@@ -4,6 +4,8 @@ services:
     restart: always
     networks:
       - proxy_default
+    environment:
+      ANM_EXTERNAL_COLLECTOR: "true"
     env_file:
       - .env
     volumes:

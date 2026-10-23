@@ -1,0 +1,24 @@
+[Unit]
+Description=Download and validate ANM before nightly import
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=3600
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/services/amazonia-minada-anm-proxy/ops/collect_anm.py --source https://dadosabertos.anm.gov.br/SIGMINE/PROCESSOS_MINERARIOS/BRASIL.zip --storage /opt/services/amazonia-minada-anm-proxy/storage
+TimeoutStartSec=25min
+Restart=on-failure
+RestartSec=5min
+MemoryMax=64M
+Nice=10
+UMask=0022
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/services/amazonia-minada-anm-proxy/storage
+
+[Install]
+WantedBy=multi-user.target
