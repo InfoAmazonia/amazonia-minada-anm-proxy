@@ -1,0 +1,34 @@
+Análise GO-2026-5932 — Traefik / Amazônia Minada — 23/10/2026
+
+Conclusão
+A evidência técnica indica que o alerta não é aplicável aos binários atuais do Azure e do Contabo, com alta confiança. Não foram encontrados pacotes/funções OpenPGP afetados, e a configuração atual não carrega plugins. Essa classificação vale somente para os artefatos examinados e a configuração atual; não é uma declaração oficial de não afetação do fabricante nem garantia geral de ausência de vulnerabilidades.
+
+O alerta
+GO-2026-5932 descreve o abandono e problemas conhecidos de segurança do pacote golang.org/x/crypto/openpgp e seus subpacotes packet, armor, clearsign, errors, elgamal e s2k. Afeta todas as versões desse pacote, sem versão corrigida. Não abrange automaticamente todo o módulo x/crypto ou todo uso de HTTPS/TLS. A alternativa ProtonMail/go-crypto é relevante para aplicações que realmente utilizem OpenPGP; não é necessário inseri-la no proxy atual.
+Fonte: https://pkg.go.dev/vuln/GO-2026-5932
+
+Evidências
+Traefik 3.7.16, Go 1.26.10, x/crypto v0.57.0.
+Azure imagem sha256:c8a121e4bb1347e8fd52657fab12f2cb70b68f8a018895e2068f92c9e519b9c2.
+Contabo imagem sha256:6d3e069ee484ab1da5adfdda555a75eb9b1545ef09096a0cc7c3043101986a20.
+As imagens têm digests diferentes, mas seus binários Traefik são idênticos.
+SHA-256 do binário, também conferido dentro do container Azure em execução: 86ee2b427888d24475051fc5f5bcca94cf4fa033b6fa54205b7eb0de6914f31e.
+Extraídas 206.352 funções da tabela Go .gopclntab com debug/elf e debug/gosym da mesma linha Go 1.26.10. Zero funções OpenPGP afetadas. Zero ocorrências do caminho golang.org/x/crypto/openpgp em todos os bytes do binário. Foram identificadas 198 funções de outras partes de x/crypto, incluindo OCSP; isso confirma que o módulo é usado, sem demonstrar uso do pacote vulnerável.
+O binário não contém .symtab nem informações DWARF. govulncheck v1.9.0 repete o alerta e gera funções curinga como golang.org/x/crypto/openpgp/*. O código da própria ferramenta mostra que, sem símbolos extraídos, ela reporta pacotes vulneráveis a partir do módulo. Esses achados curinga não comprovam que o código OpenPGP esteja ligado ao executável. Por isso não foi usada a simples saída do scanner para concluir afetação ou não afetação.
+Fonte da limitação: https://github.com/golang/vuln/blob/v1.9.0/internal/vulncheck/binary.go#L105-L114
+
+Configuração e rota ANM
+No Azure, providers Docker e file, certificados X.509 locais, TLS mínimo 1.2 e portas públicas 80/443. Sem configuração experimental de plugins em arquivo, argumentos ou variáveis de ambiente. OpenPGP não faz parte dessa rota.
+A coleta ANM continua em serviço separado Python/curl do host, com validação CRC/SHP/DBF e publicação atômica de ZIP/recibo; o Traefik apenas entrega o arquivo por HTTPS ao Contabo. Não é necessário alterar dados, importador, certificados, firewall ou exceções Cloudflare para tratar este alerta.
+Na investigação: site/API/licenças HTTPS 200 na origem; ZIP público HEAD 200 com no-store e recibo da validação de 23/10 às 17:53:27 BRT. Última coleta success, timer ativo. Não foi disparada nova coleta/importação, nem alterado serviço ou regra. A análise pesada ocorreu em containers descartáveis no Contabo.
+
+Plano proposto
+1. Manter as imagens oficiais atuais fixadas por digest. Registrar esta avaliação como não aplicável aos artefatos exatos examinados, preservando os relatórios brutos.
+2. Se for preciso retirar o ruído das avaliações automatizadas, criar uma declaração VEX/exceção técnica somente para GO-2026-5932 e esses digests, com justificativa de ausência do código afetado, evidência e revisão em até 30 dias (22/11/2026). Revogar automaticamente ao mudar imagem/binário, habilitar plugin ou perder a capacidade de extrair as evidências. Nenhuma exceção foi ativada nesta investigação.
+3. Manter scans gerais e revisar novamente a cada atualização de imagem/configuração/plugin; não ignorar todo x/crypto nem alertas altos/críticos. Abrir investigação se o pacote OpenPGP passar a aparecer.
+4. Para futuras atualizações, testar a imagem candidata em rede isolada, preservar imagem/configuração/certificados anteriores e trocar um serviço por vez, fora da coleta 00h e importação 00h30 BRT, após confirmar que não há worker ativo. Verificar GET/HEAD/Range, ZIP completo com recibo/hash/CRC, site, APIs e CSV após publicar; reverter imediatamente em falha. Atualizar o módulo x/crypto isoladamente não elimina este alerta, que cobre todas as versões do pacote OpenPGP abandonado.
+
+Evidência reproduzível
+Programa de inspeção e saídas brutas em work/traefik-alert-20261023/evidence e no Contabo em /var/backups/minada/traefik-alert-20261023.
+Comando de reprodução, usando Go 1.26.10: go run symbols.go /caminho/do/binario/traefik.
+Não houve alteração de código da aplicação, commit novo ou modificação em produção nesta investigação.
