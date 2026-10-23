@@ -38,7 +38,13 @@ app.get("/download/:filename", (req, res) => {
   res.download(storagePath, (err) => {
     if (err) {
       getLogger().error(`Error sending file ${filename}: ${err}`);
-      res.status(500).send('Error downloading file');
+      // sendFile also reports client disconnects after headers have been sent.
+      // Writing another response here throws and terminates the Node process.
+      if (!res.headersSent && !res.destroyed) {
+        res.status(500).send('Error downloading file');
+      } else if (!res.destroyed) {
+        res.destroy();
+      }
     } else {
       console.log(`File ${filename} downloaded successfully`);
     }

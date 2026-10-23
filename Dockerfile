@@ -1,26 +1,28 @@
-FROM debian:bookworm
+# Build on a machine with enough memory; the Azure VM only runs the result.
+ARG NODE_IMAGE=node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+FROM ${NODE_IMAGE} AS build
+WORKDIR /app
+COPY package.json package-lock.json tsconfig.json ./
+RUN npm ci
+COPY src ./src
+COPY test ./test
+RUN npm test
 
-ENV TZ=America/Sao_Paulo
+FROM ${NODE_IMAGE} AS production-dependencies
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
 
-RUN apt-get update && apt-get -y upgrade
-RUN apt-get install -y libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 curl gnupg
-RUN curl -sL https://deb.nodesource.com/setup_22.x | bash -
-
-# Install Node.js, which now uses the added NodeSource repository
-RUN apt-get install -y nodejs
-
-COPY ["package.json", "package-lock.json*", "tsconfig.json", "/app/"]
-COPY ["./src/", "./app/src/"]
-COPY "Startup.sh" "/Startup.sh"
-
-# Installs and Builds the Application
-WORKDIR /app/
-
-RUN npm install -g typescript
-RUN npm install -g ts-node @types/node
-RUN npm install
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-
-CMD [ "/bin/bash", "/Startup.sh" ]
-
-
+FROM ${NODE_IMAGE} AS runtime
+ENV NODE_ENV=production TZ=America/Sao_Paulo
+WORKDIR /app
+COPY --from=production-dependencies /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY package.json ./
+# Package managers and their bundled dependencies are not needed to run JS.
+RUN rm -rf /usr/local/lib/node_modules /opt/yarn* \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg \
+    && mkdir storage && chown node:node storage
+USER node
+EXPOSE 3000
+CMD ["node", "dist/server.js"]

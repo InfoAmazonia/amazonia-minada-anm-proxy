@@ -1,2 +1,3 @@
-#!/bin/bash
-node -r ts-node/register src/server.ts
+#!/bin/sh
+set -eu
+exec node dist/server.js

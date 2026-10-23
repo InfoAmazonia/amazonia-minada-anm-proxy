@@ -1,5 +1,6 @@
 services:
   app:
+    image: minada-proxy:20261023-node24-r2
     build: .
     restart: always
     networks:
