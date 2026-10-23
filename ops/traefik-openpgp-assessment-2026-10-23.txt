@@ -29,6 +29,6 @@ Plano proposto
 4. Para futuras atualizações, testar a imagem candidata em rede isolada, preservar imagem/configuração/certificados anteriores e trocar um serviço por vez, fora da coleta 00h e importação 00h30 BRT, após confirmar que não há worker ativo. Verificar GET/HEAD/Range, ZIP completo com recibo/hash/CRC, site, APIs e CSV após publicar; reverter imediatamente em falha. Atualizar o módulo x/crypto isoladamente não elimina este alerta, que cobre todas as versões do pacote OpenPGP abandonado.
 
 Evidência reproduzível
-Programa de inspeção e saídas brutas em work/traefik-alert-20261023/evidence e no Contabo em /var/backups/minada/traefik-alert-20261023.
-Comando de reprodução, usando Go 1.26.10: go run symbols.go /caminho/do/binario/traefik.
-Não houve alteração de código da aplicação, commit novo ou modificação em produção nesta investigação.
+Programa reproduzível: ops/inspect-traefik-symbols.go. Resumo das evidências: ops/traefik-openpgp-evidence-2026-10-23.json. Saídas brutas preservadas no Contabo em /var/backups/minada/traefik-alert-20261023.
+Comando de reprodução, usando Go 1.26.10: go run ops/inspect-traefik-symbols.go /caminho/do/binario/traefik.
+A investigação não alterou a aplicação nem os serviços. Sua documentação e o programa de inspeção são publicados separadamente neste repositório.
