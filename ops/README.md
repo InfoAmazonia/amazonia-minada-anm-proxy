@@ -6,6 +6,16 @@ A coleta roda às **00:00 America/Sao_Paulo**, com até três tentativas (interv
 
 O proxy resolve o symlink uma vez e serve o mesmo arquivo e seus cabeçalhos `X-ANM-SHA256`, `X-ANM-Downloaded-At`, `X-ANM-Validated-At`, `X-ANM-Bytes`, com `Cache-Control: no-store`. Não requer nova rota nem exceção no Cloudflare. A prova atesta o momento da coleta/validação; não afirma que a ANM alterou o conteúdo.
 
+## DNS do coletor (24/10/2026)
+
+A unidade de coleta passa `--doh-url https://cloudflare-dns.com/dns-query` ao coletor. A opção configura DNS sobre HTTPS somente no processo curl que baixa a ANM; não muda o DNS da VM, do Docker ou dos outros serviços. Sem essa opção, o coletor mantém o resolvedor padrão do sistema. O recibo registra `dnsOverHttps` quando a opção está ativa.
+
+Essa mitigação trata a falha observada na resolução da ANM: seus autoritativos respondiam por TCP/53, mas as consultas UDP expiravam, e vários resolvedores retornavam `SERVFAIL`. O Cloudflare conseguia responder. Isso não garante que esse resolvedor sempre estará disponível. Se o DoH falhar, a coleta termina com erro e preserva a geração anterior; não recorre a IP fixo da ANM, DNS sem validação ou certificado inseguro. O curl valida os certificados tanto do resolvedor DoH quanto da origem. O nome do próprio resolvedor DoH ainda é resolvido normalmente pelo sistema.
+
+Antes de aplicar, preserve `ops/collect_anm.py`, a unidade `.service` instalada e a geração pública anterior em diretório privado. Execute os testes Python e a coleta candidata completa em `--storage` separado, conferindo hash, CRC, registros e recibo; o symlink de produção deve permanecer igual durante esse teste. Para essa alteração não é necessário reconstruir imagens nem reiniciar o proxy ou Traefik. Após copiar somente o coletor e a unidade, valide com `systemd-analyze verify`, execute `systemctl daemon-reload` e inicie a coleta pelo serviço existente. Preserve o timer de 00h e o bloqueio do importador por recibo do dia.
+
+A reversão desta mitigação restaura apenas o coletor e a unidade anteriores, seguida de `systemctl daemon-reload`, depois de confirmar que nenhuma coleta está ativa. Preserve os ZIPs válidos e os dados já importados; uma reversão de DNS não exige restaurar o MongoDB ou desativar a validação de arquivos. Se a falha de DNS da origem persistir, a configuração anterior voltará a falhar com segurança. A recuperação completa exige uma coleta validada seguida do pipeline UC → TI e confirmação do estado final das publicações Mapbox, site, APIs e CSV.
+
 ## Instalação
 
 No Azure, em `/opt/services/amazonia-minada-anm-proxy`:

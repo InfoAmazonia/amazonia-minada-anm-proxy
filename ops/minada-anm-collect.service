@@ -7,7 +7,7 @@ StartLimitBurst=3
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/python3 /opt/services/amazonia-minada-anm-proxy/ops/collect_anm.py --source https://dadosabertos.anm.gov.br/SIGMINE/PROCESSOS_MINERARIOS/BRASIL.zip --storage /opt/services/amazonia-minada-anm-proxy/storage
+ExecStart=/usr/bin/python3 /opt/services/amazonia-minada-anm-proxy/ops/collect_anm.py --source https://dadosabertos.anm.gov.br/SIGMINE/PROCESSOS_MINERARIOS/BRASIL.zip --storage /opt/services/amazonia-minada-anm-proxy/storage --doh-url https://cloudflare-dns.com/dns-query
 TimeoutStartSec=25min
 Restart=on-failure
 RestartSec=5min

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Stream, validate and atomically publish an ANM generation using bounded memory."""
 import argparse, datetime, fcntl, hashlib, json, os, pathlib, shutil, struct, subprocess, tempfile, time, uuid, zipfile
+from urllib.parse import urlsplit
 
 def validate(archive):
     with zipfile.ZipFile(archive) as z:
@@ -33,7 +34,11 @@ def validate(archive):
                 raise ValueError('Invalid DBF fields')
     return count
 
-def collect(source, storage, filename):
+def collect(source, storage, filename, doh_url=None):
+    if doh_url is not None:
+        resolver = urlsplit(doh_url)
+        if resolver.scheme != 'https' or not resolver.hostname or resolver.username is not None or resolver.password is not None or resolver.fragment:
+            raise ValueError('DoH resolver must be an HTTPS URL without credentials or fragment')
     storage = pathlib.Path(storage).resolve()
     storage.mkdir(parents=True, exist_ok=True)
     if pathlib.Path(filename).name != filename:
@@ -48,12 +53,18 @@ def collect(source, storage, filename):
         try:
             archive = stage / filename
             # Same User-Agent as the existing successful Axios GET; never use HEAD as proof of download.
-            subprocess.run(['curl', '--fail', '--silent', '--show-error', '--location', '--proto', '=https', '--proto-redir', '=https', '--connect-timeout', '30', '--max-time', '1200', '--max-filesize', str(1024**3), '--user-agent', 'axios/1.13.5', '--output', str(archive), source], check=True)
+            command = ['curl', '--fail', '--silent', '--show-error', '--location', '--proto', '=https', '--proto-redir', '=https', '--connect-timeout', '30', '--max-time', '1200', '--max-filesize', str(1024**3), '--user-agent', 'axios/1.13.5', '--output', str(archive)]
+            if doh_url is not None:
+                # Scope DNS-over-HTTPS to this download; curl verifies both TLS connections.
+                command.extend(['--doh-url', doh_url])
+            subprocess.run(command + [source], check=True)
             downloaded = datetime.datetime.now(datetime.timezone.utc).isoformat()
             records = validate(archive)
             with archive.open('rb') as f:
                 digest = hashlib.file_digest(f, 'sha256').hexdigest()
             metadata = dict(source=source, bytes=archive.stat().st_size, sha256=digest, records=records, downloadedAt=downloaded, validatedAt=datetime.datetime.now(datetime.timezone.utc).isoformat())
+            if doh_url is not None:
+                metadata['dnsOverHttps'] = doh_url
             manifest = archive.with_name(archive.name + '.validated.json')
             manifest.write_text(json.dumps(metadata))
             for f in [archive, manifest]:
@@ -89,10 +100,11 @@ def main():
     a.add_argument('--source', required=True)
     a.add_argument('--storage', required=True)
     a.add_argument('--filename', default='PROCESSOS_MINERARIOS_BRASIL.zip')
+    a.add_argument('--doh-url', help='HTTPS DNS resolver used only for this collection; system DNS is unchanged')
     args = a.parse_args()
     if not args.source.startswith('https://'):
         raise ValueError('HTTPS source required')
-    collect(args.source, args.storage, args.filename)
+    collect(args.source, args.storage, args.filename, doh_url=args.doh_url)
 
 if __name__ == '__main__':
     main()
