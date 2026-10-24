@@ -19,6 +19,48 @@ def fixture(path, kind='valid'):
         data = bytearray(path.read_bytes()); offset = data.index(b'PK\x01\x02'); data[offset+16] ^= 1; path.write_bytes(data)
 
 class CollectorTests(unittest.TestCase):
+    def test_doh_download_keeps_tls_and_validated_receipt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            def download(cmd, **kw):
+                self.assertEqual(cmd[cmd.index('--doh-url')+1], 'https://cloudflare-dns.com/dns-query')
+                self.assertEqual(cmd[cmd.index('--user-agent')+1], 'axios/1.13.5')
+                self.assertNotIn('--insecure', cmd)
+                self.assertNotIn('--doh-insecure', cmd)
+                fixture(pathlib.Path(cmd[cmd.index('--output')+1]))
+            with patch.object(m.subprocess, 'run', side_effect=download):
+                result = m.collect('https://example.test/file', root, 'PROCESSOS_MINERARIOS_BRASIL.zip',
+                    doh_url='https://cloudflare-dns.com/dns-query')
+            self.assertEqual(result['records'], 1)
+            self.assertEqual(result['dnsOverHttps'], 'https://cloudflare-dns.com/dns-query')
+            receipt = pathlib.Path(str((root/'PROCESSOS_MINERARIOS_BRASIL.zip').resolve())+'.validated.json')
+            self.assertEqual(m.json.loads(receipt.read_text()), result)
+
+    def test_doh_failure_preserves_previous_generation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            def download(cmd, **kw): fixture(pathlib.Path(cmd[cmd.index('--output')+1]))
+            with patch.object(m.subprocess, 'run', side_effect=download):
+                result = m.collect('https://example.test/file', root, 'PROCESSOS_MINERARIOS_BRASIL.zip')
+            target = root/'PROCESSOS_MINERARIOS_BRASIL.zip'
+            previous = target.resolve()
+            with patch.object(m.subprocess, 'run', side_effect=m.subprocess.CalledProcessError(6, ['curl'])) as run:
+                with self.assertRaises(m.subprocess.CalledProcessError):
+                    m.collect('https://example.test/file', root, target.name,
+                        doh_url='https://cloudflare-dns.com/dns-query')
+            self.assertEqual(run.call_count, 1)
+            self.assertEqual(target.resolve(), previous)
+            self.assertEqual(m.hashlib.sha256(target.read_bytes()).hexdigest(), result['sha256'])
+            self.assertFalse(list((root/'.anm').glob('.partial-*')))
+
+    def test_invalid_doh_resolver_is_rejected_before_download(self):
+        for url in ['http://resolver.test/query', 'https:///query',
+                    'https://user:secret@resolver.test/query', 'https://resolver.test/query#fragment']:
+            with self.subTest(url=url), tempfile.TemporaryDirectory() as tmp:
+                with patch.object(m.subprocess, 'run') as run, self.assertRaises(ValueError):
+                    m.collect('https://example.test/file', tmp, 'PROCESSOS_MINERARIOS_BRASIL.zip', doh_url=url)
+                run.assert_not_called()
+
     def test_success_and_immutable_generation(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp); target = root/'PROCESSOS_MINERARIOS_BRASIL.zip'; target.write_bytes(b'previous')
